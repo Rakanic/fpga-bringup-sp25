@@ -25,6 +25,7 @@ import sifive.blocks.devices.gpio._
 import sifive.blocks.devices.uart._
 import sifive.blocks.devices.spi._
 import sifive.blocks.devices.i2c._
+import sifive.blocks.devices.pwm._
 import tracegen.{TraceGenSystemModuleImp}
 
 import chipyard.iocell._
@@ -276,6 +277,32 @@ class WithI2CPunchthrough extends OverrideIOBinder({
   }
 })
 
+class WithI2CIOCells extends OverrideIOBinder({
+  (system: HasPeripheryI2C) => {
+    val (ports, cells2d) = system.i2c.zipWithIndex.map({ case (i2c, i) =>
+      val p = system.asInstanceOf[BaseSubsystem].p
+      val port = IO(new(I2CPinsIO)).suggestName(s"i2c_${i}")
+
+      val sda_iocell =  p(IOCellKey).gpio().suggestName(s"iocell_i2c_${i}_sda")
+      sda_iocell.io.o := i2c.sda.out
+      sda_iocell.io.oe := i2c.sda.oe
+      sda_iocell.io.ie := true.B
+      i2c.sda.in := sda_iocell.io.i
+      sda_iocell.io.pad <> port.sda
+        
+      val scl_iocell =  p(IOCellKey).gpio().suggestName(s"iocell_i2c_${i}_scl")
+      scl_iocell.io.o := i2c.scl.out
+      scl_iocell.io.oe := i2c.scl.oe
+      scl_iocell.io.ie := true.B
+      i2c.scl.in := scl_iocell.io.i
+      scl_iocell.io.pad <> port.scl
+      
+      (I2CPinsPort(() => port), Seq(sda_iocell, scl_iocell))
+    }).unzip
+    (ports, cells2d.flatten)
+  }
+})
+
 // DOC include start: WithUARTIOCells
 class WithUARTIOCells extends OverrideIOBinder({
   (system: HasPeripheryUART) => {
@@ -309,6 +336,35 @@ class WithSPIIOPunchthrough extends OverrideLazyIOBinder({
     }
   }
 })
+
+// class WithSPIIOCells extends OverrideIOBinder({
+//   (system: HasPeripherySPIFlash) => {
+//     val (ports: Seq[SPIFlashPort], cells2d) = system.qspi.zipWithIndex.map({ case (s, i) =>
+//       val p = system.asInstanceOf[BaseSubsystem].p
+//       val name = s"spi_${i}"
+//       val port = IO(new SPIChipIO(s.c.csWidth)).suggestName(name)
+//       val iocellBase = s"iocell_${name}"
+
+//       // SCK and CS are unidirectional outputs
+//       val sckIOs = IOCell.generateFromSignal(s.sck, port.sck, Some(s"${iocellBase}_sck"), p(IOCellKey), IOCell.toAsyncReset)
+//       val csIOs = IOCell.generateFromSignal(s.cs, port.cs, Some(s"${iocellBase}_cs"), p(IOCellKey), IOCell.toAsyncReset)
+
+//       // DQ are bidirectional, so then need special treatment
+//       val dqIOs = s.dq.zip(port.dq).zipWithIndex.map { case ((pin, ana), j) =>
+//         val iocell = p(IOCellKey).gpio().suggestName(s"${iocellBase}_dq_${j}")
+//         iocell.io.o := pin.o
+//         iocell.io.oe := pin.oe
+//         iocell.io.ie := true.B
+//         pin.i := iocell.io.i
+//         iocell.io.pad <> ana
+//         iocell
+//       }
+
+//       (SPIFlashPort(() => port, p(PeripherySPIFlashKey)(i), i), dqIOs ++ csIOs ++ sckIOs)
+//     }).unzip
+//     (ports, cells2d.flatten)
+//   }
+// })
 
 class WithSPIFlashIOCells extends OverrideIOBinder({
   (system: HasPeripherySPIFlash) => {
@@ -444,7 +500,7 @@ class WithSerialTLPunchthrough extends OverrideIOBinder({
   (system: CanHavePeripheryTLSerial) => {
     val (ports, cells) = system.serial_tls.zipWithIndex.map({ case (s, id) =>
       val sys = system.asInstanceOf[BaseSubsystem]
-      val port = IO(chiselTypeOf(s.getWrappedValue))
+      val port = IO(chiselTypeOf(s.getWrappedValue)).suggestName(s"serial_tl_$id")
       port <> s.getWrappedValue
       (SerialTLPort(() => port, sys.p(SerialTLKey)(id), system.serdessers(id), id), Nil)
     }).unzip
@@ -701,5 +757,16 @@ class WithOffchipBusSel extends OverrideIOBinder({
       val (port, cells) = IOCell.generateIOFromSignal(sel, "obus_sel", sys.p(IOCellKey))
       (Seq(OffchipSelPort(() => port)), cells)
     }.getOrElse(Nil, Nil)
+  }
+})
+
+class WithPWMPunchthrough extends OverrideIOBinder({
+  (system: HasPeripheryPWM) => {
+    val ports = system.pwm.zipWithIndex.map { case (pwm, i) =>
+      val io_pwm = IO(pwm.cloneType).suggestName(s"pwm_$i")
+      io_pwm <> pwm
+      PWMPort(() => io_pwm)
+    }
+    (ports, Nil)
   }
 })
