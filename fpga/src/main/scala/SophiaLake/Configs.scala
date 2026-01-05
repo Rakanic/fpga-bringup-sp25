@@ -28,13 +28,16 @@ class WithNoDesignKey extends Config((site, here, up) => {
 
 // By default, this uses the on-board USB-UART for the TSI-over-UART link
 class WithSophiaLakeTweaks(freqMHz: Double = 10) extends Config(
+  // new WithSophiaLakeFTDISPITSI ++
+  // new testchipip.tsi.WithSPITSIClient ++
+
   new WithSophiaLakeUARTTSI ++
   new WithSophiaLakeTDDRTL ++
 
   new WithNoDesignKey ++
   new chipyard.harness.WithSerialTLTiedOff ++
 
-  new testchipip.tsi.WithUARTTSIClient(initBaudRate = 115200) ++
+  new testchipip.tsi.WithUARTTSIClient(initBaudRate = 921600) ++
   
   new chipyard.harness.WithHarnessBinderClockFreqMHz(freqMHz) ++
   new chipyard.config.WithUniformBusFrequencies(freqMHz) ++
@@ -51,14 +54,27 @@ class SophiaLakeDSP24Config extends Config(
   new testchipip.soc.WithMbusScratchpad(base = 0x10080000L, size = 256 * 1024) ++
   new chipyard.config.WithBroadcastManager ++
   
-  new SophiaLakeBringupHostConfig)
+  new SophiaLakeBringupHostConfig2)
 
 
 // A simple config demonstrating a "bringup prototype" to bringup the ChipLikeRocketconfig
-class SophiaLakeBringupHostConfig extends Config(
+class SophiaLakeBringupHostConfig2 extends Config(
   new WithSophiaLakeSerialTLToGPIO ++
-  new WithSophiaLakeTweaks(freqMHz = 10) ++
+  new WithJohnPMODPWM ++
+  new chipyard.iobinders.WithI2CIOCells ++
+  new chipyard.iobinders.WithPWMPunchthrough ++
+  new WithJohnPMODI2C ++
+  // new WithJohnPMODSPI ++
+  new WithSophiaLakeTweaks(freqMHz = 50) ++
   new chipyard.iobinders.WithOldSerialTLPunchthrough ++                // Don't generate IOCells for the serial TL (this design maps to FPGA)
+
+  //=============================
+  // Setup a bunch of peripherals to provide to the chip over SerialTL-P
+  //=============================
+  // new chipyard.config.WithSPI(address = 0x18000000, csWidth=2) ++
+  new chipyard.config.WithI2C(address = 0x10081000) ++
+  new chipyard.config.WithPWM(address = 0x10080000, channels = 4) ++
+
   //=============================
   // Setup the SerialTL side on the bringup device
   //=============================
@@ -74,18 +90,26 @@ class SophiaLakeBringupHostConfig extends Config(
             size    = BigInt("6C000000", 16)),
       ))),
       client = Some(testchipip.serdes.old.SerialTLClientParams()),                                        // Allow chip to access this device's memory (DRAM)
-      phyParams = testchipip.serdes.old.InternalSyncSerialParams(width=8, freqMHz = 10)), // bringup platform provides the clock
+      phyParams = testchipip.serdes.old.InternalSyncSerialParams(width=8, freqMHz = 50)), // bringup platform provides the clock
     
     testchipip.serdes.old.SerialTLParams(
       manager = None,
       client = Some(testchipip.serdes.old.SerialTLClientParams()),                                        // Allow chip to access this device's memory (DRAM)
-      phyParams = testchipip.serdes.old.InternalSyncSerialParams(width=1, freqMHz = 10)), // bringup platform provides the clock   
+      phyParams = testchipip.serdes.old.InternalSyncSerialParams(width=1, freqMHz = 50)), // bringup platform provides the clock   
     )) ++
 
   //============================
   // Setup bus topology on the bringup system
   //============================
   new testchipip.soc.WithOffchipBusClient(SBUS,                                 // offchip bus hangs off the SBUS
-    blockRange = AddressSet.misaligned(0x100000000L, (BigInt(1) << 30) * 4)) ++ // offchip bus should not see the main memory of the testchip, since that can be accessed directly
+    blockRange = AddressSet.misaligned(0x80000000L, (BigInt(1) << 30) * 4)) ++ // offchip bus should not see the main memory of the testchip, since that can be accessed directly
   new testchipip.soc.WithOffchipBus ++                                          // offchip bus
+  new chipyard.NoCoresConfig)
+
+class RegProgConfig extends Config(
+  new chipyard.iobinders.WithI2CIOCells ++
+  new WithRegulatorI2C ++
+  new WithSophiaLakeTweaks(freqMHz = 50) ++
+
+  new chipyard.config.WithI2C(address = 0x10081000) ++
   new chipyard.NoCoresConfig)
