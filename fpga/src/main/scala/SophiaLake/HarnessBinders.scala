@@ -99,7 +99,6 @@ class WithSophiaLakeSerialTLToGPIO extends HarnessBinder({
         packagePinsWithPackageIOs foreach { case (pin, io) => {
           ath.xdc.addPackagePin(io, pin)
           ath.xdc.addIOStandard(io, "LVCMOS12")
-          ath.xdc.addPulldown(io)
         }}
 
         // // Don't add IOB to the clock, if its an input

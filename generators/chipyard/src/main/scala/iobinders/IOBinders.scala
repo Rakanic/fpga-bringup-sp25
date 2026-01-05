@@ -36,7 +36,7 @@ import testchipip.soc.{CanHavePeripheryChipIdPin, CanHaveSwitchableOffchipBus}
 import testchipip.util.{ClockedIO}
 import testchipip.iceblk.{CanHavePeripheryBlockDevice, BlockDeviceKey, BlockDeviceIO}
 import testchipip.cosim.{CanHaveTraceIO, TraceOutputTop, SpikeCosimConfig}
-import testchipip.tsi.{CanHavePeripheryUARTTSI, UARTTSIIO}
+import testchipip.tsi.{CanHavePeripheryUARTTSI, UARTTSIIO, CanHavePeripherySPITSI, SPITSIIO}
 import icenet.{CanHavePeripheryIceNIC, SimNetwork, NicLoopback, NICKey, NICIOvonly}
 import chipyard.{CanHaveMasterTLMemPort, ChipyardSystem, ChipyardSystemModule}
 import chipyard.example.{CanHavePeripheryGCD}
@@ -620,6 +620,15 @@ class WithUARTTSIPunchthrough extends OverrideIOBinder({
     val uart_tsi = IO(new UARTTSIIO(p.uartParams))
     uart_tsi <> p
     (Seq(UARTTSIPort(() => uart_tsi)), Nil)
+  }).getOrElse((Nil, Nil))
+})
+
+class WithSPITSIPunchthrough extends OverrideIOBinder({
+  (system: CanHavePeripherySPITSI) => system.spi_tsi.map({ p =>
+    val sys = system.asInstanceOf[BaseSubsystem]
+    val spi_tsi = IO(new SPITSIIO())
+    spi_tsi <> p
+    (Seq(SPITSIPort(() => spi_tsi)), Nil)
   }).getOrElse((Nil, Nil))
 })
 
