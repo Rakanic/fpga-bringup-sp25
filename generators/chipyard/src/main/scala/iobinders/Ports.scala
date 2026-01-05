@@ -5,12 +5,13 @@ import chisel3.experimental.{Analog}
 import sifive.blocks.devices.uart.{UARTPortIO}
 import sifive.blocks.devices.spi.{SPIFlashParams, SPIPortIO}
 import sifive.blocks.devices.gpio.{GPIOPortIO}
+import sifive.blocks.devices.pwm.{PWMPortIO}
 import testchipip.util.{ClockedIO}
 import testchipip.serdes.{TLSerdesser, SerialIO, SerialTLParams}
 import testchipip.spi.{SPIChipIO}
 import testchipip.cosim.{TraceOutputTop, SpikeCosimConfig}
 import testchipip.iceblk.{BlockDeviceIO, BlockDeviceConfig}
-import testchipip.tsi.{UARTTSIIO}
+import testchipip.tsi.{UARTTSIIO, SPITSIIO}
 import icenet.{NICIOvonly, NICConfig}
 import org.chipsalliance.cde.config.{Parameters}
 import freechips.rocketchip.amba.axi4.{AXI4Bundle, AXI4EdgeParameters}
@@ -49,6 +50,9 @@ case class GPIOPinsPort    (val getIO: () => GPIOPortIO, val gpioId: Int)
 
 case class I2CPort         (val getIO: () => sifive.blocks.devices.i2c.I2CPort)
     extends Port[sifive.blocks.devices.i2c.I2CPort]
+
+case class I2CPinsPort         (val getIO: () => sifive.blocks.devices.i2c.I2CPinsIO)
+    extends Port[sifive.blocks.devices.i2c.I2CPinsIO]
 
 case class UARTPort        (val getIO: () => UARTPortIO, val uartNo: Int, val freqMHz: Int)
     extends Port[UARTPortIO]
@@ -96,6 +100,9 @@ case class ChipIdPort      (val getIO: () => UInt)
 case class UARTTSIPort     (val getIO: () => UARTTSIIO)
     extends Port[UARTTSIIO]
 
+case class SPITSIPort     (val getIO: () => SPITSIIO)
+    extends Port[SPITSIIO]
+
 case class SuccessPort     (val getIO: () => Bool)
     extends Port[Bool]
 
@@ -129,3 +136,5 @@ case class GCDBusyPort     (val getIO: () => Bool)
 case class OffchipSelPort  (val getIO: () => UInt)
     extends Port[UInt]
 
+case class PWMPort         (val getIO: () => PWMPortIO)
+    extends Port[PWMPortIO]

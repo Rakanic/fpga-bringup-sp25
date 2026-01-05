@@ -17,6 +17,7 @@ import sifive.blocks.devices.uart._
 import sifive.blocks.devices.spi._
 import sifive.blocks.devices.i2c._
 import sifive.blocks.devices.timer._
+import sifive.blocks.devices.pwm._
 
 import testchipip._
 
@@ -98,9 +99,9 @@ class WithSPIFlash(size: BigInt = 0x10000000, address: BigInt = 0x10030000, fAdd
   *
   * @param address the address of the SPI controller
   */
-class WithSPI(address: BigInt = 0x10031000) extends Config((site, here, up) => {
+class WithSPI(address: BigInt = 0x10031000, csWidth: Int = 1) extends Config((site, here, up) => {
   case PeripherySPIKey => up(PeripherySPIKey) ++ Seq(
-    SPIParams(rAddress = address))
+    SPIParams(rAddress = address, csWidth = csWidth))
 })
 
 /**
@@ -183,4 +184,14 @@ class WithNoBusErrorDevices extends Config((site, here, up) => {
 
 class WithPeripheryTimer(timerParams: TimerParams = TimerParams(0x4000)) extends Config((site, here, up) => {
   case PeripheryTimerKey => Seq(timerParams)
+})
+
+/**
+  * Config fragment for adding a PWM peripheral device to the SoC
+  *
+  * @param address the address of the PWM controller
+  */
+class WithPWM(address: BigInt = 0x10060000, channels: Int = 4, cmpWidth: Int = 16) extends Config((site, here, up) => {
+  case PeripheryPWMKey => up(PeripheryPWMKey) ++ Seq(
+    PWMParams(address = address, size = 0x1000, regBytes = 4, ncmp = channels, cmpWidth = cmpWidth))
 })
