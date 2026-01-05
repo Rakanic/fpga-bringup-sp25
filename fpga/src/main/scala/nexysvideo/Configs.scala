@@ -74,3 +74,23 @@ class BringupNexysVideoConfig extends Config(
   new WithNexysVideoTweaks(freqMHz = 75) ++
   new chipyard.ChipBringupHostConfig)
 
+class NexysChipLikeRocketConfig extends Config(
+  new WithNoDesignKey ++
+  new chipyard.harness.WithUARTTiedOff ++
+  new chipyard.harness.WithTiedOffJTAG ++
+  new chipyard.config.WithNoClockTap ++
+  new chipyard.config.WithTileFrequency(75.0) ++
+  new chipyard.harness.WithHarnessBinderClockFreqMHz(75) ++
+  new chipyard.config.WithUniformBusFrequencies(75) ++
+  new chipyard.harness.WithAllClocksFromHarnessClockInstantiator ++
+  new chipyard.clocking.WithPassthroughClockGenerator ++
+  new chipyard.ChipLikeRocketConfig
+)
+
+class TetheredNexysChipLikeRocketConfig extends Config(
+  new WithNoDesignKey ++
+  new chipyard.harness.WithHarnessBinderClockFreqMHz(75) ++
+  new chipyard.harness.WithAllClocksFromHarnessClockInstantiator ++
+  new chipyard.harness.WithMultiChipSerialTL(0, 1) ++                // connect the serial-tl ports of the chips together
+  new chipyard.harness.WithMultiChip(0, new NexysChipLikeRocketConfig) ++ // ChipTop0 is the design-to-be-taped-out
+  new chipyard.harness.WithMultiChip(1, new BringupNexysVideoConfig))  // ChipTop1 is the bringup design
