@@ -201,6 +201,49 @@ ifeq ($(SUB_PROJECT),sophialake)
 	FPGA_BRAND        ?= xilinx
 endif
 
+ifeq ($(SUB_PROJECT),dsp25SL)
+	SBT_PROJECT       ?= chipyard_fpga
+	MODEL             ?= SophiaLakeHarness
+	VLOG_MODEL        ?= SophiaLakeHarness
+	MODEL_PACKAGE     ?= chipyard.fpga.sophialake
+	CONFIG            ?= SophiaLakeDSP25Config
+	CONFIG_PACKAGE    ?= chipyard.fpga.sophialake
+	GENERATOR_PACKAGE ?= chipyard
+	TB                ?= none # unused
+	TOP               ?= ChipTop
+	BOARD             ?= sophialake
+	FPGA_BRAND        ?= xilinx
+endif
+
+ifeq ($(SUB_PROJECT),dsp24SL)
+	SBT_PROJECT       ?= chipyard_fpga
+	MODEL             ?= SophiaLakeHarness
+	VLOG_MODEL        ?= SophiaLakeHarness
+	MODEL_PACKAGE     ?= chipyard.fpga.sophialake
+	CONFIG            ?= SophiaLakeDSP24Config
+	CONFIG_PACKAGE    ?= chipyard.fpga.sophialake
+	GENERATOR_PACKAGE ?= chipyard
+	TB                ?= none # unused
+	TOP               ?= ChipTop
+	BOARD             ?= sophialake
+	FPGA_BRAND        ?= xilinx
+endif
+
+
+ifeq ($(SUB_PROJECT),bearly25SL)
+	SBT_PROJECT       ?= chipyard_fpga
+	MODEL             ?= SophiaLakeHarness
+	VLOG_MODEL        ?= SophiaLakeHarness
+	MODEL_PACKAGE     ?= chipyard.fpga.sophialake
+	CONFIG            ?= SophiaLakeBML25Config
+	CONFIG_PACKAGE    ?= chipyard.fpga.sophialake
+	GENERATOR_PACKAGE ?= chipyard
+	TB                ?= none # unused
+	TOP               ?= ChipTop
+	BOARD             ?= sophialake
+	FPGA_BRAND        ?= xilinx
+endif
+
 
 export USE_CHISEL6=1
 

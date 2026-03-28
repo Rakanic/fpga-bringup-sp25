@@ -25,34 +25,11 @@ import testchipip.serdes._
 import testchipip.serdes.old._
 import testchipip.spi.{SPISubordinateIO}
 
-class WithSophiaLakeUARTTSI extends HarnessBinder({
-  case (th: HasHarnessInstantiators, port: UARTTSIPort, chipId: Int) => {
-    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
-    val harnessIO = IO(new UARTPortIO(port.io.uartParams)).suggestName("uart_tsi")
-    harnessIO <> port.io.uart
-    val packagePinsWithPackageIOs = Seq(
-      ("T21" , IOPin(harnessIO.rxd)),
-      ("V22", IOPin(harnessIO.txd)))
 
-    packagePinsWithPackageIOs foreach { case (pin, io) => {
-      ath.xdc.addPackagePin(io, pin)
-      ath.xdc.addIOStandard(io, "LVCMOS33")
-      ath.xdc.addIOB(io)
-    } }
-  }
-})
-
-class WithSophiaLakeTDDRTL extends HarnessBinder({
-  case (th: HasHarnessInstantiators, port: TLMemPort, chipId: Int) => {
-    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
-    val bundles = ath.ddrClient.out.map(_._1)
-    val ddrClientBundle = Wire(new HeterogeneousBag(bundles.map(_.cloneType)))
-    bundles.zip(ddrClientBundle).foreach { case (bundle, io) => bundle <> io }
-    ddrClientBundle <> port.io
-  }
-})
-
-class WithSophiaLakeSerialTLToGPIO extends HarnessBinder({
+//==========================================================
+// DSP24 Sophia Lake Tilelink GPIO Config
+//==========================================================
+class WithDSP24SophiaLakeSerialTLToGPIO extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: OldSerialTLPort, chipId: Int) => {
     val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
     val harnessIO = IO(chiselTypeOf(port.io)).suggestName(s"serial_tl_old_${port.portId}")
@@ -124,6 +101,188 @@ class WithSophiaLakeSerialTLToGPIO extends HarnessBinder({
   }
 })
 
+
+//==========================================================
+// BearlyML 25 Sophia Lake Tilelink GPIO Config
+//==========================================================
+class WithBML25SophiaLakeSerialTLToGPIO extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SerialTLPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val harnessIO = IO(chiselTypeOf(port.io)).suggestName("serial_tl")
+    harnessIO <> port.io
+    harnessIO match {
+      case io: DecoupledPhitIO => {
+        val clkIO = io match {
+          case io: HasClockOut => IOPin(io.clock_out)
+          case io: HasClockIn => IOPin(io.clock_in)
+        }
+        val packagePinsWithPackageIOs = {
+          Seq(
+            ("D17", clkIO),
+
+            ("C15", IOPin(io.out.valid)),
+            ("D16", IOPin(io.out.ready)),
+            ("C17", IOPin(io.out.bits.phit, 0)),
+            ("A18", IOPin(io.out.bits.phit, 1)),
+            ("B21", IOPin(io.out.bits.phit, 2)),
+            ("A20", IOPin(io.out.bits.phit, 3)),
+            ("B18", IOPin(io.out.bits.phit, 4)),
+            ("A19", IOPin(io.out.bits.phit, 5)),
+            ("C18", IOPin(io.out.bits.phit, 6)),
+            ("B17", IOPin(io.out.bits.phit, 7)),
+
+            ("A21", IOPin(io.in.valid)),
+            ("B20", IOPin(io.in.ready)),
+            ("H19", IOPin(io.in.bits.phit, 0)),
+            ("G20", IOPin(io.in.bits.phit, 1)),
+            ("C14", IOPin(io.in.bits.phit, 2)),
+            ("H20", IOPin(io.in.bits.phit, 3)),
+            ("F19", IOPin(io.in.bits.phit, 4)),
+            ("E22", IOPin(io.in.bits.phit, 5)),
+            ("C19", IOPin(io.in.bits.phit, 6)),
+            ("C22", IOPin(io.in.bits.phit, 7)),
+          )
+        }
+        
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS12")
+        }}
+
+        
+        // Don't add IOB to the clock, if its an input
+        io match {
+          case io: DecoupledInternalSyncPhitIO => packagePinsWithPackageIOs foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+          case io: DecoupledExternalSyncPhitIO => packagePinsWithPackageIOs.drop(1).foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+        }
+        
+
+        ath.sdc.addClock("ser_tl_clock", clkIO, 100)
+        ath.sdc.addGroup(pins = Seq(clkIO))
+        ath.xdc.clockDedicatedRouteFalse(clkIO)
+      }
+
+      
+    }
+  }
+})
+
+
+//==========================================================
+// DSP25 Sophia Lake Tilelink GPIO Config
+//==========================================================
+class WithDSP25SophiaLakeSerialTLToGPIO extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SerialTLPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val harnessIO = IO(chiselTypeOf(port.io)).suggestName("serial_tl")
+    harnessIO <> port.io
+    harnessIO match {
+      case io: DecoupledPhitIO => {
+        val clkIO = io match {
+          case io: HasClockOut => IOPin(io.clock_out)
+          case io: HasClockIn => IOPin(io.clock_in)
+        }
+        val packagePinsWithPackageIOs = {
+          Seq(
+            ("A21", clkIO),
+
+            ("B20", IOPin(io.out.valid)),
+            ("E16", IOPin(io.out.ready)),
+            ("C22", IOPin(io.out.bits.phit, 0)),
+            ("E19", IOPin(io.out.bits.phit, 1)),
+            ("M15", IOPin(io.out.bits.phit, 2)),
+            ("A15", IOPin(io.out.bits.phit, 3)),
+            ("C13", IOPin(io.out.bits.phit, 4)),
+            ("L15", IOPin(io.out.bits.phit, 5)),
+            ("G20", IOPin(io.out.bits.phit, 6)),
+            ("F13", IOPin(io.out.bits.phit, 7)),
+
+            ("G13", IOPin(io.in.valid)),
+            ("E17", IOPin(io.in.ready)),
+            ("G15", IOPin(io.in.bits.phit, 0)),
+            ("H14", IOPin(io.in.bits.phit, 1)),
+            ("J20", IOPin(io.in.bits.phit, 2)),
+            ("J17", IOPin(io.in.bits.phit, 3)),
+            ("N20", IOPin(io.in.bits.phit, 4)),
+            ("N19", IOPin(io.in.bits.phit, 5)),
+            ("J19", IOPin(io.in.bits.phit, 6)),
+            ("A14", IOPin(io.in.bits.phit, 7)),
+          )
+        }
+        
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS12")
+        }}
+
+        
+        // Don't add IOB to the clock, if its an input
+        io match {
+          case io: DecoupledInternalSyncPhitIO => packagePinsWithPackageIOs foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+          case io: DecoupledExternalSyncPhitIO => packagePinsWithPackageIOs.drop(1).foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+        }
+        
+
+        ath.sdc.addClock("ser_tl_clock", clkIO, 100)
+        ath.sdc.addGroup(pins = Seq(clkIO))
+        ath.xdc.clockDedicatedRouteFalse(clkIO)
+      }
+
+      
+    }
+  }
+})
+
+
+
+
+
+
+
+
+
+
+
+//==========================================================
+// Generic Harness Binder Classes
+//==========================================================
+class WithSophiaLakeUARTTSI extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: UARTTSIPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val harnessIO = IO(new UARTPortIO(port.io.uartParams)).suggestName("uart_tsi")
+    harnessIO <> port.io.uart
+    val packagePinsWithPackageIOs = Seq(
+      ("T21" , IOPin(harnessIO.rxd)),
+      ("U21", IOPin(harnessIO.txd)))
+
+    packagePinsWithPackageIOs foreach { case (pin, io) => {
+      ath.xdc.addPackagePin(io, pin)
+      ath.xdc.addIOStandard(io, "LVCMOS33")
+      ath.xdc.addIOB(io)
+    } }
+  }
+})
+
+
+class WithSophiaLakeTDDRTL extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: TLMemPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val bundles = ath.ddrClient.out.map(_._1)
+    val ddrClientBundle = Wire(new HeterogeneousBag(bundles.map(_.cloneType)))
+    bundles.zip(ddrClientBundle).foreach { case (bundle, io) => bundle <> io }
+    ddrClientBundle <> port.io
+  }
+})
+
+
 class WithJohnPMODPWM extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: PWMPort, chipId: Int) => {
     val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
@@ -143,6 +302,7 @@ class WithJohnPMODPWM extends HarnessBinder({
   }
 })
 
+
 class WithJohnPMODI2C extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: I2CPinsPort, chipId: Int) => {
     val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
@@ -159,6 +319,7 @@ class WithJohnPMODI2C extends HarnessBinder({
     } }
   }
 })
+
 
 class WithRegulatorI2C extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: I2CPinsPort, chipId: Int) => {
@@ -177,6 +338,7 @@ class WithRegulatorI2C extends HarnessBinder({
     } }
   }
 })
+
 
 // class WithJohnPMODSPI extends HarnessBinder({
 //   case (th: HasHarnessInstantiators, port: SPIPort, chipId: Int) => {
@@ -197,6 +359,7 @@ class WithRegulatorI2C extends HarnessBinder({
 //     } }
 //   }
 // })
+
 
 class WithSophiaLakeFTDISPITSI extends HarnessBinder({
   case (th: HasHarnessInstantiators, port: SPITSIPort, chipId: Int) => {
