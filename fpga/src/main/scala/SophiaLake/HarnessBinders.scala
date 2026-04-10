@@ -252,6 +252,190 @@ class WithDSP25SophiaLakeSerialTLToGPIO extends HarnessBinder({
 
 
 //==========================================================
+// DSP25 C2C Sophia Lake Tilelink GPIO Config
+//==========================================================
+class WithDSP25C2CSophiaLakeSerialTLToGPIO extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SerialTLPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val harnessIO = IO(chiselTypeOf(port.io)).suggestName(s"serial_tl_${port.portId}")
+    harnessIO <> port.io
+    harnessIO match {
+      // Port 0: Decoupled serial TL (same as non-C2C DSP25)
+      case io: DecoupledPhitIO if port.portId == 0 => {
+        val clkIO = io match {
+          case io: HasClockOut => IOPin(io.clock_out)
+          case io: HasClockIn => IOPin(io.clock_in)
+        }
+        val packagePinsWithPackageIOs = {
+          Seq(
+            ("A21", clkIO),
+
+            ("B20", IOPin(io.out.valid)),
+            ("E16", IOPin(io.out.ready)),
+            ("C22", IOPin(io.out.bits.phit, 0)),
+            ("E19", IOPin(io.out.bits.phit, 1)),
+            ("M15", IOPin(io.out.bits.phit, 2)),
+            ("A15", IOPin(io.out.bits.phit, 3)),
+            ("C13", IOPin(io.out.bits.phit, 4)),
+            ("L15", IOPin(io.out.bits.phit, 5)),
+            ("G20", IOPin(io.out.bits.phit, 6)),
+            ("F13", IOPin(io.out.bits.phit, 7)),
+
+            ("G13", IOPin(io.in.valid)),
+            ("E17", IOPin(io.in.ready)),
+            ("G15", IOPin(io.in.bits.phit, 0)),
+            ("H14", IOPin(io.in.bits.phit, 1)),
+            ("J20", IOPin(io.in.bits.phit, 2)),
+            ("J17", IOPin(io.in.bits.phit, 3)),
+            ("N20", IOPin(io.in.bits.phit, 4)),
+            ("N19", IOPin(io.in.bits.phit, 5)),
+            ("J19", IOPin(io.in.bits.phit, 6)),
+            ("A14", IOPin(io.in.bits.phit, 7)),
+          )
+        }
+
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS12")
+        }}
+
+        io match {
+          case io: DecoupledInternalSyncPhitIO => packagePinsWithPackageIOs foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+          case io: DecoupledExternalSyncPhitIO => packagePinsWithPackageIOs.drop(1).foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+        }
+
+        ath.sdc.addClock("ser_tl_clock", clkIO, 100)
+        ath.sdc.addGroup(pins = Seq(clkIO))
+        ath.xdc.clockDedicatedRouteFalse(clkIO)
+      }
+
+      // Port 1: Credited source-sync C2C link over PMOD 00-03
+      case io: CreditedSourceSyncPhitIO if port.portId == 1 => {
+        val packagePinsWithPackageIOs = Seq(
+          // TX side (PMOD 00-01)
+          ("Y16",  IOPin(io.clock_out)),
+          ("AA16", IOPin(io.reset_out)),
+          ("AB16", IOPin(io.out.valid)),
+          ("AB17", IOPin(io.out.bits.phit, 0)),
+          // RX side (PMOD 02-03)
+          ("AA13", IOPin(io.clock_in)),
+          ("AB13", IOPin(io.reset_in)),
+          ("AA15", IOPin(io.in.valid)),
+          ("AB15", IOPin(io.in.bits.phit, 0)),
+        )
+
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS33")
+          ath.xdc.addIOB(io)
+        }}
+
+        ath.sdc.addClock("c2c_clock_in", IOPin(io.clock_in), 100)
+        ath.sdc.addGroup(pins = Seq(IOPin(io.clock_in)))
+        ath.xdc.clockDedicatedRouteFalse(IOPin(io.clock_in))
+      }
+    }
+  }
+})
+
+
+//==========================================================
+// BearlyML 25 C2C Sophia Lake Tilelink GPIO Config
+//==========================================================
+class WithBML25C2CSophiaLakeSerialTLToGPIO extends HarnessBinder({
+  case (th: HasHarnessInstantiators, port: SerialTLPort, chipId: Int) => {
+    val ath = th.asInstanceOf[LazyRawModuleImp].wrapper.asInstanceOf[SophiaLakeHarness]
+    val harnessIO = IO(chiselTypeOf(port.io)).suggestName(s"serial_tl_${port.portId}")
+    harnessIO <> port.io
+    harnessIO match {
+      // Port 0: Decoupled serial TL (same as non-C2C BML25)
+      case io: DecoupledPhitIO if port.portId == 0 => {
+        val clkIO = io match {
+          case io: HasClockOut => IOPin(io.clock_out)
+          case io: HasClockIn => IOPin(io.clock_in)
+        }
+        val packagePinsWithPackageIOs = {
+          Seq(
+            ("D17", clkIO),
+
+            ("C15", IOPin(io.out.valid)),
+            ("D16", IOPin(io.out.ready)),
+            ("C17", IOPin(io.out.bits.phit, 0)),
+            ("A18", IOPin(io.out.bits.phit, 1)),
+            ("B21", IOPin(io.out.bits.phit, 2)),
+            ("A20", IOPin(io.out.bits.phit, 3)),
+            ("B18", IOPin(io.out.bits.phit, 4)),
+            ("A19", IOPin(io.out.bits.phit, 5)),
+            ("C18", IOPin(io.out.bits.phit, 6)),
+            ("B17", IOPin(io.out.bits.phit, 7)),
+
+            ("A21", IOPin(io.in.valid)),
+            ("B20", IOPin(io.in.ready)),
+            ("H19", IOPin(io.in.bits.phit, 0)),
+            ("G20", IOPin(io.in.bits.phit, 1)),
+            ("C14", IOPin(io.in.bits.phit, 2)),
+            ("H20", IOPin(io.in.bits.phit, 3)),
+            ("F19", IOPin(io.in.bits.phit, 4)),
+            ("E22", IOPin(io.in.bits.phit, 5)),
+            ("C19", IOPin(io.in.bits.phit, 6)),
+            ("C22", IOPin(io.in.bits.phit, 7)),
+          )
+        }
+
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS12")
+        }}
+
+        io match {
+          case io: DecoupledInternalSyncPhitIO => packagePinsWithPackageIOs foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+          case io: DecoupledExternalSyncPhitIO => packagePinsWithPackageIOs.drop(1).foreach { case (pin, io) => {
+            ath.xdc.addIOB(io)
+          }}
+        }
+
+        ath.sdc.addClock("ser_tl_clock", clkIO, 100)
+        ath.sdc.addGroup(pins = Seq(clkIO))
+        ath.xdc.clockDedicatedRouteFalse(clkIO)
+      }
+
+      // Port 1: Credited source-sync C2C link over PMOD 00-03 (swapped vs DSP25)
+      case io: CreditedSourceSyncPhitIO if port.portId == 1 => {
+        val packagePinsWithPackageIOs = Seq(
+          // TX side (PMOD 02-03) — mirrors DSP25's RX
+          ("AA13", IOPin(io.clock_out)),
+          ("AB13", IOPin(io.reset_out)),
+          ("AA15",  IOPin(io.out.valid)),
+          ("AB15", IOPin(io.out.bits.phit, 0)),
+          // RX side (PMOD 00-01) — mirrors DSP25's TX
+          ("Y16",  IOPin(io.clock_in)),
+          ("AA16", IOPin(io.reset_in)),
+          ("AB16", IOPin(io.in.valid)),
+          ("AB17", IOPin(io.in.bits.phit, 0)),
+        )
+
+        packagePinsWithPackageIOs foreach { case (pin, io) => {
+          ath.xdc.addPackagePin(io, pin)
+          ath.xdc.addIOStandard(io, "LVCMOS33")
+          ath.xdc.addIOB(io)
+        }}
+
+        ath.sdc.addClock("c2c_clock_in", IOPin(io.clock_in), 100)
+        ath.sdc.addGroup(pins = Seq(IOPin(io.clock_in)))
+        ath.xdc.clockDedicatedRouteFalse(IOPin(io.clock_in))
+      }
+    }
+  }
+})
+
+
+//==========================================================
 // Generic Harness Binder Classes
 //==========================================================
 class WithSophiaLakeUARTTSI extends HarnessBinder({

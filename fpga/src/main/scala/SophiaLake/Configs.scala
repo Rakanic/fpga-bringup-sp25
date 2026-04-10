@@ -21,6 +21,10 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.subsystem.{MBUS, SBUS}
 import testchipip.soc.{OBUS}
 
+import chisel3._
+import chipyard.harness.{HarnessClockInstantiator, HarnessClockInstantiatorKey}
+import chipyard.clocking.{ClockDividerN}
+
 
 //==========================================================
 // DSP 25 Sophia Lake Config
@@ -43,8 +47,63 @@ class SophiaLakeDSP25Config extends Config(
   new SophiaLakeConfig(freqMHz = 50))
 
 
+  class SophiaLakeDSP25C2CConfig extends Config(
+    new WithDSP25C2CSophiaLakeSerialTLToGPIO ++
+    new testchipip.serdes.WithSerialTL(Seq(
+      testchipip.serdes.SerialTLParams(
+        manager = Some(testchipip.serdes.SerialTLManagerParams(
+          memParams = Seq(testchipip.serdes.ManagerRAMParams(
+            address = BigInt("00000000", 16),
+            size    = BigInt("80000000", 16)         // extended to match port 1's 32-bit address width
+          )),
+          slaveWhere = OBUS
+        )),
+        client = Some(testchipip.serdes.SerialTLClientParams()),
+        phyParams = testchipip.serdes.DecoupledInternalSyncSerialPhyParams(phitWidth=8, flitWidth=16, freqMHz = 50)
+      ),
+      testchipip.serdes.SerialTLParams(
+        manager = Some(testchipip.serdes.SerialTLManagerParams(
+          memParams = Seq(testchipip.serdes.ManagerRAMParams(
+            address = BigInt("c0000000", 16),
+            size    = BigInt("40000000", 16)       // 1 GiB window
+          )),
+          slaveWhere = MBUS
+        )),
+        client = None,
+        phyParams = testchipip.serdes.CreditedSourceSyncSerialPhyParams(phitWidth=1, flitWidth=16, freqMHz = 5)
+      )
+    )) ++
+    new WithDividerHarnessClockInstantiator ++                  // Override AllClocksFromHarnessClockInstantiator to support clock division
+    new SophiaLakeConfig(freqMHz = 50))
 
 
+
+//==========================================================
+// BearlyML 25 Chip-to-Chip Sophia Lake Config
+//==========================================================
+class SophiaLakeBML25C2CConfig extends Config(
+  new WithBML25C2CSophiaLakeSerialTLToGPIO ++
+  new testchipip.serdes.WithSerialTL(Seq(
+    testchipip.serdes.SerialTLParams(
+      manager = Some(testchipip.serdes.SerialTLManagerParams(
+        memParams = Seq(testchipip.serdes.ManagerRAMParams(
+          address = BigInt("00000000", 16),
+          size    = BigInt("80000000", 16)         // 0-3 GiB, extended to match port 1's 32-bit address width
+        )),
+        slaveWhere = OBUS
+      )),
+      client = Some(testchipip.serdes.SerialTLClientParams()),
+      phyParams = testchipip.serdes.DecoupledInternalSyncSerialPhyParams(phitWidth=8, flitWidth=16, freqMHz = 50)
+    ),
+    testchipip.serdes.SerialTLParams(
+      manager = None,
+      client = Some(testchipip.serdes.SerialTLClientParams()),                                                                        // BML only initiates requests to DSP25, no incoming
+      phyParams = testchipip.serdes.CreditedSourceSyncSerialPhyParams(phitWidth=1, flitWidth=16, freqMHz = 5)
+    )
+  )) ++
+  new testchipip.soc.WithScratchpad(base = BigInt("c0000000", 16), size = 16 << 10, busWhere = MBUS) ++
+  new WithDividerHarnessClockInstantiator ++                    // Override AllClocksFromHarnessClockInstantiator to support clock division
+  new SophiaLakeConfig(freqMHz = 50))
 
 
 //==========================================================
@@ -123,6 +182,32 @@ class SophiaLakeDSP24Config extends Config(
 
 
 
+
+
+//==========================================================
+// Harness clock instantiator that supports clock division
+//==========================================================
+class DividerHarnessClockInstantiator extends HarnessClockInstantiator {
+  def instantiateHarnessClocks(refClock: Clock, refClockFreqMHz: Double): Unit = {
+    val refFreqHz = refClockFreqMHz * 1000 * 1000
+    for ((name, (freqHz, clock)) <- clockMap) {
+      if (freqHz == refFreqHz) {
+        clock := refClock
+      } else {
+        val divBy = math.round(refFreqHz / freqHz).toInt
+        require(divBy > 1 && math.abs(refFreqHz / divBy - freqHz) < 1.0,
+          s"Reference clock ${refClockFreqMHz} MHz cannot be evenly divided to get ${freqHz / 1e6} MHz for clock $name")
+        val divider = Module(new ClockDividerN(divBy))
+        divider.io.clk_in := refClock
+        clock := divider.io.clk_out
+      }
+    }
+  }
+}
+
+class WithDividerHarnessClockInstantiator extends Config((site, here, up) => {
+  case HarnessClockInstantiatorKey => () => new DividerHarnessClockInstantiator
+})
 
 
 //==========================================================
