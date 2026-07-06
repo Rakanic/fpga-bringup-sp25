@@ -61,18 +61,23 @@ class SophiaLakeDSP25Config extends Config(
         client = Some(testchipip.serdes.SerialTLClientParams()),
         phyParams = testchipip.serdes.DecoupledInternalSyncSerialPhyParams(phitWidth=8, flitWidth=16, freqMHz = 50)
       ),
+      // Port 1: bidirectional chip-to-chip link over the 8-pin credited source-sync PHY.
+      //   manager -> DSP25 masters into BML's scratchpad at 0xd000_0000
+      //   client  -> DSP25 accepts incoming masters from BML (targeting DSP25's own 0xc000_0000 scratchpad)
+      // The credited PHY is already full-duplex, so both directions use the SAME 8 pins.
       testchipip.serdes.SerialTLParams(
         manager = Some(testchipip.serdes.SerialTLManagerParams(
           memParams = Seq(testchipip.serdes.ManagerRAMParams(
-            address = BigInt("c0000000", 16),
-            size    = BigInt("40000000", 16)       // 1 GiB window
+            address = BigInt("d0000000", 16),       // window into BML25's scratchpad
+            size    = BigInt("00004000", 16)        // 16 KiB, matches peer scratchpad size
           )),
           slaveWhere = MBUS
         )),
-        client = None,
+        client = Some(testchipip.serdes.SerialTLClientParams()),   // let BML25 master into DSP25's scratchpad
         phyParams = testchipip.serdes.CreditedSourceSyncSerialPhyParams(phitWidth=1, flitWidth=16, freqMHz = 5)
       )
     )) ++
+    new testchipip.soc.WithScratchpad(base = BigInt("c0000000", 16), size = 16 << 10, busWhere = MBUS) ++  // DSP25's local scratchpad, reachable by BML25
     new WithDividerHarnessClockInstantiator ++                  // Override AllClocksFromHarnessClockInstantiator to support clock division
     new SophiaLakeConfig(freqMHz = 50))
 
@@ -95,13 +100,23 @@ class SophiaLakeBML25C2CConfig extends Config(
       client = Some(testchipip.serdes.SerialTLClientParams()),
       phyParams = testchipip.serdes.DecoupledInternalSyncSerialPhyParams(phitWidth=8, flitWidth=16, freqMHz = 50)
     ),
+    // Port 1: bidirectional chip-to-chip link over the 8-pin credited source-sync PHY.
+    //   manager -> BML25 masters into DSP25's scratchpad at 0xc000_0000
+    //   client  -> BML25 accepts incoming masters from DSP25 (targeting BML25's own 0xd000_0000 scratchpad)
+    // The credited PHY is already full-duplex, so both directions use the SAME 8 pins.
     testchipip.serdes.SerialTLParams(
-      manager = None,
-      client = Some(testchipip.serdes.SerialTLClientParams()),                                                                        // BML only initiates requests to DSP25, no incoming
+      manager = Some(testchipip.serdes.SerialTLManagerParams(
+        memParams = Seq(testchipip.serdes.ManagerRAMParams(
+          address = BigInt("c0000000", 16),       // window into DSP25's scratchpad
+          size    = BigInt("00004000", 16)        // 16 KiB, matches peer scratchpad size
+        )),
+        slaveWhere = MBUS
+      )),
+      client = Some(testchipip.serdes.SerialTLClientParams()),   // let DSP25 master into BML25's scratchpad
       phyParams = testchipip.serdes.CreditedSourceSyncSerialPhyParams(phitWidth=1, flitWidth=16, freqMHz = 5)
     )
   )) ++
-  new testchipip.soc.WithScratchpad(base = BigInt("c0000000", 16), size = 16 << 10, busWhere = MBUS) ++
+  new testchipip.soc.WithScratchpad(base = BigInt("d0000000", 16), size = 16 << 10, busWhere = MBUS) ++  // BML25's local scratchpad, reachable by DSP25
   new WithDividerHarnessClockInstantiator ++                    // Override AllClocksFromHarnessClockInstantiator to support clock division
   new SophiaLakeConfig(freqMHz = 50))
 
